@@ -1,0 +1,99 @@
+# StrengthTracker Configuration
+# Edit this file to customize your workout program
+
+# Program Settings
+program:
+  name: "Starting Strength Program"
+  description: "Classic Starting Strength linear progression"
+  schedule:
+    days: [2, 4, 7]  # Tuesday, Thursday, Sunday (0=Monday, 6=Sunday)
+  cycle: ["week_A", "week_B"]
+
+# Exercise Definitions
+exercises:
+  squat:
+    starting_weight: 60
+    progression: 2.5
+    sets: 3
+    reps: 5
+    description: "Back squat"
+    
+  bench_press:
+    starting_weight: 50
+    progression: 2.5
+    sets: 3
+    reps: 5
+    description: "Bench press"
+    
+  overhead_press:
+    starting_weight: 40
+    progression: 2.5
+    sets: 3
+    reps: 5
+    description: "Overhead press"
+    
+  deadlift:
+    starting_weight: 80
+    progression: 5
+    sets: 1
+    reps: 5
+    description: "Deadlift"
+    
+  power_clean:
+    starting_weight: 40
+    progression: 2.5
+    sets: 5
+    reps: 3
+    description: "Power clean"
+    
+  atlas_curl:
+    starting_weight: "bodyweight"
+    progression: 0
+    sets: 2
+    reps: 10
+    no_warmup: true
+    description: "Atlas curl"
+    
+  neck_curl:
+    starting_weight: "bodyweight"
+    progression: 0
+    sets: 3
+    reps: 15
+    no_warmup: true
+    description: "Neck curl"
+    
+  hanging_leg_raise:
+    starting_weight: "bodyweight"
+    progression: 0
+    sets: 3
+    reps: 10
+    no_warmup: true
+    description: "Hanging leg raise"
+
+# Workout Templates
+workouts:
+  week_A:
+    - squat
+    - bench_press
+    - deadlift
+    
+  week_B:
+    - squat
+    - overhead_press
+    - power_clean
+
+# Bonus Exercises (repeat every week regardless of A/B cycle)
+bonus_exercises:
+  - atlas_curl
+  - neck_curl
+  - hanging_leg_raise
+
+# Deload Settings
+deload:
+  stalling_attempts: 3
+  reduce_percent: 10
+
+# Weight Rounding
+rounding:
+  increment: 2.5
+  unit: "kg"

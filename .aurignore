@@ -1,0 +1,16 @@
+.github/
+.git/
+.gitignore
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+.tox/
+.env
+.venv/
+venv/
+env/

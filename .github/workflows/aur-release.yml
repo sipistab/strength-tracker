@@ -1,0 +1,51 @@
+name: Update AUR Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  update-aur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+          
+      - name: Build package
+        run: python -m build
+        
+      - name: Calculate SHA256
+        run: |
+          sha256=$(sha256sum dist/strength_tracker-*.tar.gz | cut -d' ' -f1)
+          echo "SHA256: $sha256"
+          echo "sha256=$sha256" >> $GITHUB_ENV
+          
+      - name: Update PKGBUILD
+        run: |
+          # Extract version from tag
+          version=${GITHUB_REF#refs/tags/v}
+          echo "Version: $version"
+          
+          # Update PKGBUILD with new version and SHA256
+          sed -i "s/^pkgver=.*/pkgver=$version/" PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('$sha256')/" PKGBUILD
+          
+      - name: Commit and push to AUR
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add PKGBUILD
+          git commit -m "Update to version ${{ env.sha256 }}"
+          git push origin HEAD:main
