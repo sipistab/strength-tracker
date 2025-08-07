@@ -288,6 +288,13 @@ class StrengthTracker:
         console.print(f"\n[bold]Today's workout: {current_workout}[/bold]")
         console.print(f"[dim]Exercises: {', '.join(exercises)}[/dim]\n")
         
+        console.print("[bold blue]Instructions:[/bold blue]")
+        console.print("• For each set, you must type:")
+        console.print("  - 'w' or 'win' to mark as successful")
+        console.print("  - 'f' or 'fail' to mark as failed")
+        console.print("  - 'q' or 'quit' to quit the workout")
+        console.print("• You can also type a number for custom reps\n")
+        
 
         
         # Track workout
@@ -338,23 +345,29 @@ class StrengthTracker:
             for set_num in range(sets):
                 console.print(f"\nSet {set_num + 1}:")
                 
-                if current_weight == "bodyweight":
-                    weight_input = "bodyweight"
-                else:
-                    weight_input = Prompt.ask("Weight (kg)", default=str(current_weight))
-                    if weight_input.lower() == "bodyweight":
-                        weight_input = "bodyweight"
+                # Use the current weight automatically
+                weight_input = current_weight
+                
+                while True:
+                    reps_input = Prompt.ask(f"Set {set_num + 1} - Reps completed")
+                    if reps_input.lower() in ["q", "quit"]:
+                        return
+                    if reps_input.lower() in ["f", "fail"]:
+                        reps_completed = 0  # Mark as failed
+                        break
+                    elif reps_input.lower() in ["w", "win"]:
+                        reps_completed = reps  # Mark as successful
+                        break
+                    elif reps_input.strip() == "":  # Empty input
+                        console.print("[red]Please type 'w' for success, 'f' for fail, or a number.[/red]")
+                        continue
                     else:
                         try:
-                            weight_input = float(weight_input)
+                            reps_completed = int(reps_input)
+                            break
                         except ValueError:
-                            weight_input = current_weight
-                
-                reps_input = Prompt.ask("Reps completed", default=str(reps))
-                try:
-                    reps_completed = int(reps_input)
-                except ValueError:
-                    reps_completed = reps
+                            console.print("[red]Invalid input. Please type 'w' for success, 'f' for fail, or a number.[/red]")
+                            continue
                 
                 # Check if failed
                 failed = reps_completed < reps
@@ -370,7 +383,7 @@ class StrengthTracker:
                 exercise_data["sets"].append(set_data)
                 
                 if failed:
-                    console.print("[red]Failed set.[/red]")
+                    console.print(f"[red]Failed set ({reps_completed}/{reps} reps)[/red]")
                     self.failure_streaks[exercise] += 1
                     
                     # Check if deload is needed (configurable consecutive failures)
@@ -388,19 +401,18 @@ class StrengthTracker:
                     else:
                         console.print(f"[yellow]Failure streak: {self.failure_streaks[exercise]}/{stalling_attempts}[/yellow]")
                 else:
-                    console.print("[green]Good set.[/green]")
+                    console.print(f"[green]Good set ({reps_completed}/{reps} reps)[/green]")
                     # Reset failure streak on success
                     if self.failure_streaks[exercise] > 0:
                         self.failure_streaks[exercise] = 0
                         console.print("[green]Failure streak reset.[/green]")
             
-            # Ask if weight should be increased
+            # Automatically increase weight if all sets successful
             if not any(set_data["failed"] for set_data in exercise_data["sets"]):
                 if exercise_config["progression"] > 0 and current_weight != "bodyweight":
-                    if Confirm.ask(f"Increase weight by {exercise_config['progression']} kg?"):
-                        new_weight = self.round_weight(current_weight + exercise_config["progression"])
-                        self.current_weights[exercise] = new_weight
-                        console.print(f"[green]Weight increased to {new_weight} kg[/green]")
+                    new_weight = self.round_weight(current_weight + exercise_config["progression"])
+                    self.current_weights[exercise] = new_weight
+                    console.print(f"[green]Weight increased to {new_weight} kg[/green]")
             
             workout_data["exercises"][exercise] = exercise_data
         
@@ -458,10 +470,71 @@ class StrengthTracker:
         console.print(table)
     
     def view_progress(self):
-        """View current weights and progress."""
+        """View comprehensive analytics and progress."""
         console.clear()
-        console.print("[bold]Current Weights[/bold]\n")
+        console.print("[bold]StrengthTracker Analytics[/bold]\n")
         
+        # Get all workout files
+        workout_files = list(self.workouts_dir.glob("*.yaml"))
+        
+        if not workout_files:
+            console.print("[yellow]No workout data found.[/yellow]")
+            return
+        
+        # Calculate analytics
+        total_workouts = len(workout_files)
+        total_weight_moved = {}
+        total_time_spent = 0
+        first_workout_date = None
+        last_workout_date = None
+        
+        # Base exercises (not bonus)
+        base_exercises = ["squat", "bench_press", "overhead_press", "deadlift", "power_clean"]
+        
+        for workout_file in workout_files:
+            try:
+                with open(workout_file) as f:
+                    workout = yaml.safe_load(f)
+                
+                date = workout.get('date')
+                if date:
+                    if first_workout_date is None:
+                        first_workout_date = date
+                    last_workout_date = date
+                
+                # Calculate weight moved for base exercises
+                for exercise, ex_data in workout.get('exercises', {}).items():
+                    if exercise in base_exercises:
+                        weight = ex_data.get('weight', 0)
+                        if weight != "bodyweight" and isinstance(weight, (int, float)):
+                            sets = ex_data.get('sets', [])
+                            for set_data in sets:
+                                reps = set_data.get('actual_reps', 0)
+                                if reps > 0:
+                                    total_weight_moved[exercise] = total_weight_moved.get(exercise, 0) + (weight * reps)
+                
+            except Exception as e:
+                console.print(f"[red]Error reading {workout_file}: {e}[/red]")
+        
+        # Display analytics
+        console.print(f"[bold]Total Workouts:[/bold] {total_workouts}")
+        
+        if first_workout_date and last_workout_date:
+            from datetime import datetime
+            start_date = datetime.strptime(first_workout_date, '%Y-%m-%d')
+            end_date = datetime.strptime(last_workout_date, '%Y-%m-%d')
+            days_on_program = (end_date - start_date).days
+            console.print(f"[bold]Days on Program:[/bold] {days_on_program}")
+            console.print(f"[bold]Started:[/bold] {first_workout_date}")
+            console.print(f"[bold]Last Workout:[/bold] {last_workout_date}")
+        
+        console.print(f"\n[bold]Total Weight Moved (Base Exercises):[/bold]")
+        for exercise in base_exercises:
+            if exercise in total_weight_moved:
+                weight_moved = total_weight_moved[exercise]
+                console.print(f"  {exercise.replace('_', ' ').title()}: {weight_moved:,.0f} kg")
+        
+        console.print(f"\n[bold]Current Weights:[/bold]")
         table = Table()
         table.add_column("Exercise")
         table.add_column("Current Weight")
@@ -495,13 +568,10 @@ class StrengthTracker:
                 "Starting Strength Program"
             ))
             
-            menu = Table.grid(padding=1)
-            menu.add_row("[1]", "Start Workout")
-            menu.add_row("[2]", "View History")
-            menu.add_row("[3]", "View Progress")
-            menu.add_row("[q]", "Quit")
-            
-            console.print(menu)
+            console.print("\n[1] Start Workout")
+            console.print("[2] View History")
+            console.print("[3] View Progress")
+            console.print("[q] Quit\n")
             
             choice = Prompt.ask("Choose an option", choices=["1", "2", "3", "q"])
             
