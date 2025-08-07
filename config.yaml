@@ -55,8 +55,8 @@ exercises:
     description: "Atlas curl"
     
   neck_curl:
-    starting_weight: "bodyweight"
-    progression: 0
+    starting_weight: 5
+    progression: 1
     sets: 3
     reps: 15
     no_warmup: true
